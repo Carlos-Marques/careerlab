@@ -5,7 +5,7 @@ use std::convert::From;
 
 #[derive(Debug, Display)]
 pub enum ServiceError {
-    #[display(fmt = "Internatl Server Error")]
+    #[display(fmt = "Internal Server Error")]
     InternalServerError,
 
     #[display(fmt = "BadRequest: {}", _0)]
