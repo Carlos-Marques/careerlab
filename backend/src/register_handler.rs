@@ -1,6 +1,6 @@
 use actix_web::{error::BlockingError, web, HttpResponse};
 use diesel::prelude::*;
-use futures::Future;
+use serde::Deserialize;
 
 use crate::errors::ServiceError;
 use crate::models::{Invitation, Pool, SlimUser, User};
@@ -12,25 +12,26 @@ pub struct UserData {
     pub password: String,
 }
 
-pub fn register_user(
+pub async fn register_user(
     invitation_id: web::Path<String>,
     user_data: web::Json<UserData>,
     pool: web::Data<Pool>,
-) -> impl Future<Item = HttpResponse, Error = ServiceError> {
-    web::block(move || {
+) -> Result<HttpResponse, ServiceError> {
+    let res = web::block(move || {
         query(
             invitation_id.into_inner(),
             user_data.into_inner().password,
             pool,
         )
     })
-    .then(|res| match res {
+    .await;
+    match res {
         Ok(user) => Ok(HttpResponse::Ok().json(&user)),
         Err(err) => match err {
             BlockingError::Error(service_error) => Err(service_error),
             BlockingError::Canceled => Err(ServiceError::InternalServerError),
         },
-    })
+    }
 }
 
 fn query(
