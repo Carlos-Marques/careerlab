@@ -18,12 +18,12 @@ pub async fn post_invitation(
     let res = web::block(move || create_invitation(invitation_data.into_inner().email, pool)).await;
 
     match res {
-    Ok(_) => Ok(HttpResponse::Ok().finish()),
-   Err(err) => match err {
-                BlockingError::Error(service_error) => Err(service_error),
-                BlockingError::Canceled => Err(ServiceError::InternalServerError),
-            },
-        }
+        Ok(_) => Ok(HttpResponse::Ok().finish()),
+        Err(err) => match err {
+            BlockingError::Error(service_error) => Err(service_error),
+            BlockingError::Canceled => Err(ServiceError::InternalServerError),
+        },
+    }
 }
 
 fn create_invitation(

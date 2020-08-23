@@ -24,14 +24,14 @@ pub async fn register_user(
             pool,
         )
     })
-        .await;
-        match res {
+    .await;
+    match res {
         Ok(user) => Ok(HttpResponse::Ok().json(&user)),
         Err(err) => match err {
             BlockingError::Error(service_error) => Err(service_error),
             BlockingError::Canceled => Err(ServiceError::InternalServerError),
         },
-        }
+    }
 }
 
 fn query(

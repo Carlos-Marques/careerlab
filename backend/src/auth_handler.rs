@@ -48,17 +48,17 @@ pub async fn login(
 ) -> Result<HttpResponse, ServiceError> {
     let res = web::block(move || query(auth_data.into_inner(), pool)).await;
 
-     match res {
-            Ok(user) => {
-                let user_string = serde_json::to_string(&user).unwrap();
-                id.remember(user_string);
-                Ok(HttpResponse::Ok().finish())
-            }
-            Err(err) => match err {
-                BlockingError::Error(service_error) => Err(service_error),
-                BlockingError::Canceled => Err(ServiceError::InternalServerError),
-            },
+    match res {
+        Ok(user) => {
+            let user_string = serde_json::to_string(&user).unwrap();
+            id.remember(user_string);
+            Ok(HttpResponse::Ok().finish())
         }
+        Err(err) => match err {
+            BlockingError::Error(service_error) => Err(service_error),
+            BlockingError::Canceled => Err(ServiceError::InternalServerError),
+        },
+    }
 }
 
 pub async fn get_me(logged_user: LoggedUser) -> HttpResponse {
