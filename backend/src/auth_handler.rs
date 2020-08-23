@@ -4,7 +4,8 @@ use actix_web::{
 };
 use diesel::prelude::*;
 use diesel::PgConnection;
-use futures::Future;
+use futures::future::{err, ok, Ready};
+use serde::Deserialize;
 
 use crate::errors::ServiceError;
 use crate::models::{Pool, SlimUser, User};
@@ -20,30 +21,34 @@ pub type LoggedUser = SlimUser;
 
 impl FromRequest for LoggedUser {
     type Error = Error;
-    type Future = Result<LoggedUser, Error>;
+    type Future = Ready<Result<LoggedUser, Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
-        if let Some(identity) = Identity::from_request(req, pl)?.identity() {
-            let user: LoggedUser = serde_json::from_str(&identity)?;
-            return Ok(user);
+        if let Ok(identity) = Identity::from_request(req, pl).into_inner() {
+            if let Some(user_json) = identity.identity() {
+                if let Ok(user) = serde_json::from_str(&user_json) {
+                    return ok(user);
+                }
+            }
         }
-        Err(ServiceError::Unauthorized.into())
+        err(ServiceError::Unauthorized.into())
     }
 }
 
-pub fn logout(id: Identity) -> HttpResponse {
+pub async fn logout(id: Identity) -> HttpResponse {
     id.forget();
     HttpResponse::Ok().finish()
 }
 
-pub fn login(
+pub async fn login(
     auth_data: web::Json<AuthData>,
     id: Identity,
     pool: web::Data<Pool>,
-) -> impl Future<Item = HttpResponse, Error = ServiceError> {
-    web::block(move || query(auth_data.into_inner(), pool)).then(
-        move |res: Result<SlimUser, BlockingError<ServiceError>>| match res {
+) -> Result<HttpResponse, ServiceError> {
+    let res = web::block(move || query(auth_data.into_inner(), pool)).await;
+
+     match res {
             Ok(user) => {
                 let user_string = serde_json::to_string(&user).unwrap();
                 id.remember(user_string);
@@ -53,14 +58,13 @@ pub fn login(
                 BlockingError::Error(service_error) => Err(service_error),
                 BlockingError::Canceled => Err(ServiceError::InternalServerError),
             },
-        },
-    )
+        }
 }
 
-pub fn get_me(logged_user: LoggedUser) -> HttpResponse {
+pub async fn get_me(logged_user: LoggedUser) -> HttpResponse {
     HttpResponse::Ok().json(logged_user)
 }
-/// Diesel query
+
 fn query(auth_data: AuthData, pool: web::Data<Pool>) -> Result<SlimUser, ServiceError> {
     use crate::schema::users::dsl::{email, users};
     let conn: &PgConnection = &pool.get().unwrap();

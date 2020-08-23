@@ -2,8 +2,6 @@
 
 #[macro_use]
 extern crate diesel;
-#[macro_use]
-extern crate serde_derive;
 
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{middleware, web, App, HttpServer};
@@ -19,7 +17,8 @@ mod register_handler;
 mod schema;
 mod utils;
 
-fn main() -> std::io::Result<()> {
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     std::env::set_var("RUST_LOG", "actix_web=info, actix_server=info");
     env_logger::init();
@@ -48,20 +47,21 @@ fn main() -> std::io::Result<()> {
                 web::scope("/api")
                     .service(
                         web::resource("/invitation")
-                            .route(web::post().to_async(invitation_handler::post_invitation)),
+                            .route(web::post().to(invitation_handler::post_invitation)),
                     )
                     .service(
                         web::resource("/register/{invitation_id}")
-                            .route(web::post().to_async(register_handler::register_user)),
+                            .route(web::post().to(register_handler::register_user)),
                     )
                     .service(
                         web::resource("/auth")
-                            .route(web::post().to_async(auth_handler::login))
-                            .route(web::delete().to_async(auth_handler::logout))
-                            .route(web::get().to_async(auth_handler::get_me)),
+                            .route(web::post().to(auth_handler::login))
+                            .route(web::delete().to(auth_handler::logout))
+                            .route(web::get().to(auth_handler::get_me)),
                     ),
             )
     })
     .bind("127.0.0.1:3000")?
     .run()
+    .await
 }

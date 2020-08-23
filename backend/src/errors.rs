@@ -2,6 +2,7 @@ use actix_web::{error::ResponseError, HttpResponse};
 use derive_more::Display;
 use diesel::result::{DatabaseErrorKind, Error as DBError};
 use std::convert::From;
+use uuid::Error as ParseError;
 
 #[derive(Debug, Display)]
 pub enum ServiceError {
@@ -27,8 +28,8 @@ impl ResponseError for ServiceError {
     }
 }
 
-impl From<uuid::Error> for ServiceError {
-    fn from(_: uuid::Error) -> ServiceError {
+impl From<ParseError> for ServiceError {
+    fn from(_: ParseError) -> ServiceError {
         ServiceError::BadRequest("Invalid UUID".into())
     }
 }
